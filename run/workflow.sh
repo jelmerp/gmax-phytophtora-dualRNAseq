@@ -6,8 +6,8 @@ fasta_host=data/ref/gmax_ncbi/GCF_000004515.6_Glycine_max_v4.0_genomic.fa       
 gff_host=data/ref/gmax_ncbi/GCF_000004515.6_Glycine_max_v4.0_genomic.gff        # Host reference genome GFF file
 fasta_psoj=data/ref/psojae/GCF_000149755.1_P.sojae_V3.0_genomic.fa              # Pathogen #1 reference genome FASTA file
 gff_psoj=data/ref/psojae/GCF_000149755.1_P.sojae_V3.0_genomic.gff               # Pathogen #1 reference genome GFF file
-fasta_psan=data/ref/Genome_P65_45X_final.fa                                     # Pathogen #2 reference genome FASTA file
-gff_psan=data/ref/BRAKER2_P65.nomask_augustus.hints.gff3                        # Pathogen #2 reference genome GFF file
+fasta_psan=data/ref/psan65/Genome_P65_45X_final.fa                                     # Pathogen #2 reference genome FASTA file
+gff_psan=data/ref/psan65/BRAKER2_P65.nomask_augustus.hints.gff3                        # Pathogen #2 reference genome GFF file
 
 ## Settings
 minq=5                          # Min. qual for TrimGalore trimming
@@ -82,13 +82,14 @@ bash scripts/gff_fix_psan.sh "$gff_psan" "$gff_psan_ed"
 
 ## Run Nextflow workflow with G.max + P.sojae
 fqd=results/fqsub  #fqd=results/kraken/unclassified
-sbatch scripts/nf_dual.sh -i "$fqd" \
-    -o results/nf_dual -c workflow/conf/nf_dual.config \
-    -f "$fasta_host" -g "$gff_host_ed" -F "$fasta_psoj" -G "$gff_psoj_ed" 
+sbatch mcic-scripts/rnaseq/nf_dual.sh -i "$fqd" \
+    -o results/nfdual_psoj -c workflow/conf/nf_dual.config \
+    -f "$fasta_host" -g "$gff_host_ed" -F "$fasta_psoj" -G "$gff_psoj_ed"
 
 ## Run Nextflow workflow with G.max + P.santomeana
-sbatch scripts/nf_dual.sh -i results/kraken/unclassified \
-    -o results/nf_dual -c workflow/conf/nf_dual.config \
+fqd=results/fqsub  #fqd=results/kraken/unclassified
+sbatch mcic-scripts/rnaseq/nf_dual.sh -i "$fqd" \
+    -o results/nfdual_psan -c workflow/conf/nf_dual.config \
     -f "$fasta_host" -g "$gff_host_ed" -F "$fasta_psan" -G "$gff_psan_ed"
 
 
@@ -97,7 +98,6 @@ sbatch scripts/nf_dual.sh -i results/kraken/unclassified \
 sbatch mcic-scripts/rnaseq/star_index.sh -i "$fasta_host" -a "$gff_host" -o results/map/star_idx
 
 ## Align the reads to the genome with STAR
-#i The reads that were _not_ classified as contaminants by Kraken2 are the input
 for R1 in results/kraken/unclassified/*_R1*fastq.gz; do
     sbatch mcic-scripts/rnaseq/star_align.sh \
         -i "$R1" -a "$gff_host" -r results/map/star_idx -o results/map
