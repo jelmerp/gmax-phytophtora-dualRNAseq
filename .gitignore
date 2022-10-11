@@ -4,3 +4,4 @@ results/
 data/
 .nextflow
 slurm-*
+.Rproj.user
