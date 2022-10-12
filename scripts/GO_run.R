@@ -9,38 +9,47 @@ source("mcic-scripts/rnaseq/rfuns/GO_fun.R") #! MAKE SURE TO UPDATE (GIT PULL OR
 ## Input files
 gene_len_file <- "results/GO/gene_lens.txt"
 GO_map_file <- "results/GO/GO_map.txt"
-DE_file <- "/fs/project/PAS0471/linda/results/RNA-Seq/DESeq2/pairwise_results_all/0_Psan10_vs_0_Psan65_all-res.txt"
+DE_dir <- "results/DE/pairwise"
+DE_files <- list.files(DE_dir, full.names = TRUE)
 
 ## Output files
 # ...
 
 ## Read the GO map and gene lengths
-gene_len_df <- read_tsv(gene_len_file)          # Should have columns "gene_id" and "length"
-GO_map <- read.delim(GO_map_file, sep = "\t")   # Should have columns "gene_id" and "go_term"
-#(GO_map needs to be a regular df and not a tibble)
+# The gene length df should have columns "gene_id" and "length"
+gene_len_df <- read_tsv(gene_len_file, show_col_types = FALSE) 
+# The GO map Should have columns "gene_id" and "go_term", and needs to be a regular df (not a tibble)
+GO_map <- read.delim(GO_map_file, sep = "\t")
 
 ## Read the DE results
-DE_dir <- "../../../linda/results/RNA-Seq/DESeq2/pairwise_results_all"
-DE_files <- list.files(DE_dir, full.names = TRUE)
 col_names <- c("gene_id", read_tsv(DE_files[1]) %>% colnames())  # These file have rownames so one column name is missing...
-DE <- map_dfr(.x = DE_files, .f = read_tsv, skip = 1, col_names = col_names) %>%
+DE <- map_dfr(.x = DE_files, .f = read_tsv,
+              skip = 1, col_names = col_names, show_col_types = FALSE) %>%
   mutate(contrast = paste0(level1, "_vs_", level2))
+
+## TEMPORARY -- Remove genes with (=> contrasts with) other genomes
+length(unique(DE$contrast))  # 36
+DE <- DE %>% filter(gene_id %in% gene_len_df$gene_id)
+length(unique(DE$contrast)) # 30
 
 
 # USE THE WRAPPER FUNCTION -----------------------------------------------------
 ## Run the GO analysis for 1 contrast
-GO_wrap(contrast_id = DE$contrast[1],
-        DE_res = DE, GO_map = GO_map, gene_lens = gene_len_df)
+GO_res <- GO_wrap(contrast_id = "48_Psan68_vs_72_Psan68",
+                  DE_res = DE, GO_map = GO_map, gene_lens = gene_len_df)
 
 ## Run the GO analysis for all contrasts
-map_dfr(.x = unique(DE$contrast),
-        .f = GO_wrap,
-        DE_res = DE, GO_map = GO_map, gene_lens = gene_len_df)
+GO_res <- map_dfr(.x = unique(DE$contrast),
+                  .f = GO_wrap,
+                  DE_res = DE, GO_map = GO_map, gene_lens = gene_len_df,
+                  max_in_cat = 50)
+
+GO_sig <- GO_res %>% filter(sig == 1)
+GO_sig %>% count(contrast)
 
 
 # STEP-BY_STEP GO ANALYSIS FOR ONE CONTRAST ------------------------------------
 ## Settings
-
 contrast_id <- "0_Psoj_vs_24_Psoj"
 
 contrast_id <- DE$contrast[1]      # Take the first contrast by means of example
